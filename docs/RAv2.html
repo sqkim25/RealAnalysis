@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Axioms & Definitions</title>
+    <style>
+        /* --- Basic Setup & Typography --- */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+
+        :root {
+            --bg-color: #f0f2f5;
+            --container-bg: #ffffff;
+            --grid-line-color: #e0e2e5;
+            --text-color: #333;
+            --header-color: #666;
+            --accent-color: #007bff;
+            --highlight-green: #28a745;
+            --highlight-red: #dc3545;
+            --glass-bg: rgba(255, 255, 255, 0.3);
+            --glass-border: rgba(255, 255, 255, 0.5);
+            --shadow-light: rgba(0, 0, 0, 0.1);
+            --shadow-dark: rgba(0, 0, 0, 0.2);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+
+        /* --- Main Layout & Navigation --- */
+        .main-container {
+            background: var(--container-bg);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px 0 var(--shadow-light);
+            width: 100%;
+            max-width: 900px;
+            position: relative;
+        }
+
+        /* Removed greyed out overlay for proof mode */
+
+        .section-nav {
+            display: flex;
+            justify-content: center;
+            border-bottom: 2px solid var(--grid-line-color);
+            margin-bottom: 2rem;
+        }
+        .section-nav-button {
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--header-color);
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s ease;
+        }
+        .section-nav-button:hover {
+            color: var(--text-color);
+        }
+        .section-nav-button.active {
+            color: var(--accent-color);
+            border-bottom-color: var(--accent-color);
+        }
+
+        .content-section { display: none; }
+        .content-section.active { display: block; }
+
+        .hidden { display: none !important; }
+
+        h1 {
+            text-align: center;
+            color: var(--text-color);
+            margin-top: 0;
+            font-weight: 700;
+        }
+
+        /* --- Controls (Liquid Glass Buttons) --- */
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.03);
+            border-radius: 12px;
+        }
+
+        .control-button {
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            background: var(--glass-bg);
+            box-shadow: 0 4px 15px var(--shadow-light);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            transition: all 0.2s ease-in-out;
+            color: var(--text-color);
+            position: relative;
+        }
+        .control-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .control-button:hover:not(:disabled) {
+            box-shadow: 0 6px 20px var(--shadow-dark);
+            transform: translateY(-2px);
+        }
+        .control-button.active {
+            background: var(--accent-color);
+            color: white;
+            box-shadow: 0 2px 10px rgba(0, 123, 255, 0.4);
+        }
+        .control-button code {
+            font-family: 'Courier New', Courier, monospace;
+            background: rgba(0,0,0,0.1);
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+        .control-button.active code { background: rgba(255,255,255,0.2); }
+        .control-button.unlock-fade-in { animation: unlock-fade-in 1s ease-out forwards; }
+        @keyframes unlock-fade-in {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        /* --- Chart Grid --- */
+        .chart-container {
+            display: grid;
+            gap: 1px;
+            background-color: var(--grid-line-color);
+            border: 1px solid var(--grid-line-color);
+            position: relative;
+        }
+
+        .grid-cell {
+            background-color: var(--container-bg);
+            min-width: 50px;
+            height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.1rem;
+            transition: background-color 0.2s ease, opacity 0.3s ease;
+            cursor: default;
+        }
+        .grid-cell.header {
+            font-weight: bold;
+            color: var(--header-color);
+            background-color: #fafafa;
+        }
+        .grid-cell.number-source { cursor: pointer; }
+        .grid-cell.number-source:hover { background-color: #e9f5ff; }
+        .grid-cell.diagonal { background-color: #e8f4fd; font-weight: bold; }
+        .grid-cell.inequality { background-color: #fff5f5; color: #c53030; }
+        .grid-cell code { font-family: 'Courier New', Courier, monospace; font-size: 1.1rem; }
+
+        /* Addition Chart Specific */
+        .addition-grid-cell.clickable { cursor: pointer; }
+        .addition-grid-cell.clickable:hover { background-color: #e6ffed; }
+        .addition-grid-cell { opacity: 0; transform: translateY(10px); transition: opacity 0.4s ease, transform 0.4s ease; }
+        .addition-grid-cell.visible { opacity: 1; transform: translateY(0); }
+
+        .grid-cell.shake-and-smoke {
+            animation: shake-smoke 0.8s ease-in-out;
+        }
+        @keyframes shake-smoke {
+            0% { transform: translate(0, 0) rotate(0); box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+            10%, 30%, 50%, 70%, 90% { transform: translate(-2px, 0) rotate(-1deg); }
+            20%, 40%, 60%, 80% { transform: translate(2px, 0) rotate(1deg); }
+            50% { box-shadow: 0 0 20px 10px rgba(220, 53, 69, 0.7); }
+            100% { transform: translate(0, 0) rotate(0); box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+        }
+
+        /* --- Animations & Effects --- */
+        #zero-effect-container {
+            position: absolute; top: 61px; left: -61px; width: 60px; height: 60px;
+        }
+        .fading-symbol {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2rem; font-weight: bold; color: var(--accent-color);
+            animation: fade-out-up 1s ease-in-out forwards;
+        }
+        @keyframes fade-out-up {
+            from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            to { opacity: 0; transform: translate(-50%, -150%) scale(0.5); }
+        }
+
+        .highlight-green {
+            animation: green-glow 1s ease-out;
+        }
+        @keyframes green-glow {
+            0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.0); }
+            50% { box-shadow: 0 0 15px 5px rgba(40, 167, 69, 0.7); }
+            100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.0); }
+        }
+
+        .plus-plus-animation {
+            position: absolute;
+            top: 50%; left: 50%;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--highlight-red);
+            pointer-events: none;
+            animation: plus-plus-fade 1s ease-out forwards;
+        }
+        @keyframes plus-plus-fade {
+            from { opacity: 1; transform: translate(-50%, -50%); }
+            to { opacity: 0; transform: translate(-50%, -200%); }
+        }
+
+        /* --- Proof Display --- */
+        #proof-display-container {
+            position: relative;
+            top: 0;
+            left: 0;
+            transform: none;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            padding: 2rem 1.5rem;
+            margin: 2rem auto;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            width: 90%;
+            max-width: 600px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px 0 var(--shadow-dark);
+        }
+        #proof-display-container.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+        #proof-display-container .proof-button {
+            font-size: 2rem;
+            padding: 1rem 1.5rem;
+            min-width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        #proof-display-container .proof-button.static {
+            cursor: default;
+            background: transparent;
+            box-shadow: none;
+            backdrop-filter: none;
+        }
+        #proof-display-container .proof-button.static:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        #lemma-unlock-display {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 15;
+            font-size: 1.5rem;
+            font-weight: 500;
+            color: var(--text-color);
+            background: var(--container-bg);
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px 0 var(--shadow-dark);
+            text-align: center;
+            animation: lemma-display-fade 4s ease-in-out forwards;
+        }
+        #lemma-unlock-display code { font-size: 1.5rem; }
+
+        @keyframes lemma-display-fade {
+            0% { opacity: 0; transform: translate(-50%, 20px); }
+            15% { opacity: 1; transform: translate(-50%, 0); }
+            85% { opacity: 1; transform: translate(-50%, 0); }
+            100% { opacity: 0; transform: translate(-50%, -20px); }
+        }
+
+        /* Enhanced green glow animation */
+        @keyframes green-glow {
+            0% {
+                box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.0);
+                background: var(--glass-bg);
+            }
+            25% {
+                box-shadow: 0 0 15px 5px rgba(40, 167, 69, 0.8);
+                background: rgba(40, 167, 69, 0.2);
+            }
+            75% {
+                box-shadow: 0 0 15px 5px rgba(40, 167, 69, 0.8);
+                background: rgba(40, 167, 69, 0.2);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.0);
+                background: var(--glass-bg);
+            }
+        }
+
+        /* Enhanced shake and smoke animation */
+        @keyframes shake-smoke {
+            0% {
+                transform: translate(0, 0) rotate(0);
+                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+                background-color: var(--container-bg);
+            }
+            10%, 30%, 50%, 70%, 90% {
+                transform: translate(-3px, 0) rotate(-2deg);
+            }
+            20%, 40%, 60%, 80% {
+                transform: translate(3px, 0) rotate(2deg);
+            }
+            25% {
+                box-shadow: 0 0 25px 15px rgba(220, 53, 69, 0.8);
+                background-color: rgba(220, 53, 69, 0.1);
+            }
+            75% {
+                box-shadow: 0 0 25px 15px rgba(220, 53, 69, 0.6);
+                background-color: rgba(220, 53, 69, 0.05);
+            }
+            100% {
+                transform: translate(0, 0) rotate(0);
+                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+                background-color: var(--container-bg);
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="main-container" id="main-container">
+
+        <nav class="section-nav">
+            <div class="section-nav-button active" data-section="peano">2.1 The Peano Axioms</div>
+            <div class="section-nav-button" data-section="addition">2.2 Addition</div>
+        </nav>
+
+        <div id="proof-display-container"></div>
+        <div id="lemma-unlock-display-container"></div>
+
+        <!-- SECTION 1: PEANO AXIOMS -->
+        <section id="peano-section" class="content-section active">
+            <h1>Peano Axioms & Equality Chart</h1>
+            <div class="controls">
+                <button class="control-button" id="axiom2_1">Axiom 2.1: <code>0 ∈ ℕ</code> (Create 0)</button>
+                <button class="control-button" id="axiom2_2">Axiom 2.2: <code>n++ ∈ ℕ</code> (Select then click a number)</button>
+                <button class="control-button" id="axiom2_3">Axiom 2.3: <code>0 ≠ n++</code> (Toggle)</button>
+                <button class="control-button" id="reflexivity">Reflexivity: <code>n = n</code> (Toggle)</button>
+                <button class="control-button" id="axiom2_4">Axiom 2.4: <code>m≠n ⇒ m++≠n++</code> (Toggle)</button>
+            </div>
+            <div id="peano-chart-container" class="chart-container"></div>
+            <div id="zero-effect-container"></div>
+        </section>
+
+        <!-- SECTION 2: ADDITION -->
+        <section id="addition-section" class="content-section">
+            <h1>Addition</h1>
+            <div class="controls">
+                <button class="control-button" id="def_2_2_1a">Definition 2.2.1a: <code>0 + m = m</code></button>
+                <button class="control-button" id="def_2_2_1b" disabled>Definition 2.2.1b: <code>(n++) + m = (n+m)++</code></button>
+                <button class="control-button hidden" id="lemma_2_2_2" disabled>Lemma 2.2.2: <code>n + 0 = n</code></button>
+            </div>
+            <div id="addition-chart-container" class="chart-container"></div>
+        </section>
+
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+        // --- STATE MANAGEMENT ---
+        const state = {
+            activeSection: 'peano',
+            // Peano State
+            peano: {
+                maxNumber: -1,
+                isAxiom2_2Active: false,
+                isAxiom2_3Toggled: false,
+                isReflexivityToggled: false,
+                isAxiom2_4Toggled: false,
+            },
+            // Addition State
+            addition: {
+                isDef2_2_1a_Toggled: false,
+                isDef2_2_1b_Toggled: false,
+                isLemma2_2_2_Unlocked: false,
+                inProofMode: false,
+                selectedCell: { r: null, c: null },
+                lemmaUnlockCounter: 0,
+            }
+        };
+
+        // --- DOM ELEMENTS ---
+        const mainContainer = document.getElementById('main-container');
+        const sectionNavButtons = document.querySelectorAll('.section-nav-button');
+        const contentSections = document.querySelectorAll('.content-section');
+        const proofDisplayContainer = document.getElementById('proof-display-container');
+        const lemmaUnlockDisplayContainer = document.getElementById('lemma-unlock-display-container');
+
+        // Peano Elements
+        const peanoChartContainer = document.getElementById('peano-chart-container');
+        const zeroEffectContainer = document.getElementById('zero-effect-container');
+        const axiom2_1_Button = document.getElementById('axiom2_1');
+        const axiom2_2_Button = document.getElementById('axiom2_2');
+        const axiom2_3_Button = document.getElementById('axiom2_3');
+        const reflexivityButton = document.getElementById('reflexivity');
+        const axiom2_4_Button = document.getElementById('axiom2_4');
+
+        // Addition Elements
+        const additionChartContainer = document.getElementById('addition-chart-container');
+        const def_2_2_1a_Button = document.getElementById('def_2_2_1a');
+        const def_2_2_1b_Button = document.getElementById('def_2_2_1b');
+        const lemma_2_2_2_Button = document.getElementById('lemma_2_2_2');
+
+        // --- GLOBAL HELPER FUNCTIONS ---
+        function createCell(content, classes = [], isCode = false) {
+            const cell = document.createElement('div');
+            cell.classList.add('grid-cell', ...classes);
+            if (isCode && content) {
+                const code = document.createElement('code');
+                code.innerHTML = content;
+                cell.appendChild(code);
+            } else {
+                cell.innerHTML = content;
+            }
+            return cell;
+        }
+
+        // --- SECTION SWITCHING ---
+        sectionNavButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const sectionName = button.dataset.section;
+                if (sectionName === state.activeSection) return;
+
+                state.activeSection = sectionName;
+                sectionNavButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+
+                contentSections.forEach(sec => sec.classList.remove('active'));
+                document.getElementById(`${sectionName}-section`).classList.add('active');
+
+                // Reset proof mode when switching
+                if (state.addition.inProofMode) exitProofMode();
+
+                render();
+            });
+        });
+
+        function render() {
+            if (state.activeSection === 'peano') {
+                renderPeanoChart();
+            } else {
+                renderAdditionSection();
+            }
+        }
+
+        // ===================================================================
+        // --- PEANO AXIOMS LOGIC (SECTION 1) ---
+        // ===================================================================
+        function renderPeanoChart() {
+            const s = state.peano;
+            peanoChartContainer.innerHTML = '';
+            if (s.maxNumber < 0) {
+                peanoChartContainer.style.display = 'none';
+                return;
+            }
+            peanoChartContainer.style.display = 'grid';
+
+            const showEllipsis = s.maxNumber === 9;
+            const cols = s.maxNumber + 2 + (showEllipsis ? 1 : 0);
+            peanoChartContainer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+            const gridContent = Array(s.maxNumber + 1).fill(null).map(() => Array(s.maxNumber + 1).fill(null));
+
+            if (s.isAxiom2_3Toggled) {
+                for (let n = 1; n <= s.maxNumber; n++) {
+                    gridContent[0][n] = `0 ≠ ${n}`;
+                    gridContent[n][0] = `${n} ≠ 0`;
+                }
+            }
+
+            if (s.isAxiom2_4Toggled) {
+                for (let iter = 0; iter < s.maxNumber; iter++) {
+                    for (let r = 1; r <= s.maxNumber; r++) {
+                        for (let c = 1; c <= s.maxNumber; c++) {
+                            if (gridContent[r - 1][c - 1] != null) gridContent[r][c] = `${r} ≠ ${c}`;
+                        }
+                    }
+                }
+            }
+
+            if (s.isReflexivityToggled) {
+                for (let n = 0; n <= s.maxNumber; n++) gridContent[n][n] = `${n} = ${n}`;
+            }
+
+            function createPeanoCell(content, classes = [], isCode = false, row = null, col = null, rawContent = null) {
+                const cell = createCell(content, classes, isCode);
+                if (row !== null) cell.dataset.row = row;
+                if (col !== null) cell.dataset.col = col;
+                if (rawContent != null) cell.dataset.content = rawContent;
+                return cell;
+            }
+
+            peanoChartContainer.appendChild(createPeanoCell('', ['header']));
+            for (let i = 0; i <= s.maxNumber; i++) peanoChartContainer.appendChild(createPeanoCell(i, ['header','number-source']));
+            if (showEllipsis) peanoChartContainer.appendChild(createPeanoCell('...', ['header']));
+
+            for (let r = 0; r <= s.maxNumber; r++) {
+                peanoChartContainer.appendChild(createPeanoCell(r, ['header','number-source']));
+                for (let c = 0; c <= s.maxNumber; c++) {
+                    const raw = gridContent[r][c] || '';
+                    const isIneq = raw.includes('≠'), isEq = raw.includes('=');
+                    const display = (s.isAxiom2_4Toggled && isIneq) ? '' : raw;
+                    const classes = ['number-source'];
+                    if (isEq) classes.push('diagonal');
+                    if (isIneq) classes.push('inequality');
+                    peanoChartContainer.appendChild(createPeanoCell(display, classes, true, r, c, isIneq ? raw : null));
+                }
+                if (showEllipsis) peanoChartContainer.appendChild(createPeanoCell('...'));
+            }
+
+            if (s.isAxiom2_4Toggled) animateInequalities();
+        }
+
+        function animateInequalities() {
+            const max = state.peano.maxNumber;
+            const totalMs = 2000;
+            const groupCount = max + 1;
+            const groupInterval = totalMs / groupCount;
+
+            const groups = Array.from({ length: groupCount }, () => []);
+            peanoChartContainer.querySelectorAll('.grid-cell.inequality').forEach(cell => {
+                const r = +cell.dataset.row, c = +cell.dataset.col;
+                if (!cell.dataset.content) return;
+                for (let diag = 0; diag <= max; diag++) {
+                    if ((r === diag && c > diag) || (c === diag && r > diag)) {
+                        groups[diag].push(cell);
+                        break;
+                    }
+                }
+            });
+
+            groups.forEach((cells, diag) => {
+                setTimeout(() => {
+                    cells.forEach(cell => {
+                        const code = document.createElement('code');
+                        code.innerHTML = cell.dataset.content;
+                        cell.appendChild(code);
+                    });
+                }, diag * groupInterval);
+            });
+        }
+
+        function triggerZeroEffect() {
+            const symbols = ['α','β','γ','X','?','#'];
+            const span = document.createElement('span');
+            span.classList.add('fading-symbol');
+            span.innerHTML = symbols[Math.floor(Math.random()*symbols.length)];
+            zeroEffectContainer.appendChild(span);
+            setTimeout(()=>span.remove(),1000);
+        }
+
+        axiom2_1_Button.addEventListener('click', () => {
+            if (state.peano.maxNumber === -1) {
+                state.peano.maxNumber = 0;
+                axiom2_1_Button.classList.add('active');
+                axiom2_1_Button.disabled = true;
+                renderPeanoChart();
+            }
+        });
+        axiom2_2_Button.addEventListener('click', () => {
+            if (state.peano.maxNumber < 0 || state.peano.maxNumber >= 9) return;
+            state.peano.isAxiom2_2Active = !state.peano.isAxiom2_2Active;
+            axiom2_2_Button.classList.toggle('active', state.peano.isAxiom2_2Active);
+        });
+        peanoChartContainer.addEventListener('click', e => {
+            if (state.peano.isAxiom2_2Active && e.target.closest('.number-source')) {
+                if (state.peano.maxNumber < 9) {
+                    state.peano.maxNumber++;
+                    renderPeanoChart();
+                }
+            }
+        });
+        axiom2_3_Button.addEventListener('click', () => {
+            state.peano.isAxiom2_3Toggled = !state.peano.isAxiom2_3Toggled;
+            axiom2_3_Button.classList.toggle('active', state.peano.isAxiom2_3Toggled);
+            triggerZeroEffect();
+            renderPeanoChart();
+        });
+        reflexivityButton.addEventListener('click', () => {
+            state.peano.isReflexivityToggled = !state.peano.isReflexivityToggled;
+            reflexivityButton.classList.toggle('active', state.peano.isReflexivityToggled);
+            renderPeanoChart();
+        });
+        axiom2_4_Button.addEventListener('click', () => {
+            state.peano.isAxiom2_4Toggled = !state.peano.isAxiom2_4Toggled;
+            axiom2_4_Button.classList.toggle('active', state.peano.isAxiom2_4Toggled);
+            renderPeanoChart();
+        });
+
+        // ===================================================================
+        // --- ADDITION LOGIC (SECTION 2) ---
+        // ===================================================================
+
+        function renderAdditionSection() {
+            renderAdditionChart();
+            renderProofDisplay();
+            updateAdditionControls();
+        }
+
+        function updateAdditionControls() {
+            const s = state.addition;
+            def_2_2_1a_Button.classList.toggle('active', s.isDef2_2_1a_Toggled);
+            def_2_2_1b_Button.classList.toggle('active', s.isDef2_2_1b_Toggled);
+            def_2_2_1b_Button.disabled = !s.isDef2_2_1a_Toggled;
+            if (s.isLemma2_2_2_Unlocked) {
+                lemma_2_2_2_Button.classList.remove('hidden');
+            }
+        }
+
+        function renderAdditionChart() {
+            const s = state.addition;
+            const size = 10;
+            additionChartContainer.innerHTML = '';
+            additionChartContainer.style.gridTemplateColumns = `repeat(${size + 1}, 1fr)`;
+
+            const gridContent = Array(size).fill(null).map(() => Array(size).fill(null));
+
+            if(s.isDef2_2_1a_Toggled) {
+                for (let c = 0; c < size; c++) gridContent[0][c] = c;
+            }
+            if(s.isDef2_2_1b_Toggled) {
+                for (let r = 1; r < size; r++) {
+                    for (let c = 0; c < size; c++) {
+                        if (gridContent[r-1][c] !== null) {
+                            gridContent[r][c] = gridContent[r-1][c] + 1;
+                        }
+                    }
+                }
+            }
+
+            // Headers
+            additionChartContainer.appendChild(createCell('', ['header']));
+            for (let i = 0; i < size; i++) {
+                additionChartContainer.appendChild(createCell(i, ['header']));
+            }
+
+            // Body
+            for (let r = 0; r < size; r++) {
+                additionChartContainer.appendChild(createCell(r, ['header']));
+                for (let c = 0; c < size; c++) {
+                    const result = gridContent[r][c];
+                    const cell = createCell('', ['addition-grid-cell']);
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    if (result !== null) {
+                        const code = document.createElement('code');
+                        code.textContent = `${r} + ${c} = ${result}`;
+                        cell.appendChild(code);
+                        cell.dataset.result = result;
+
+                        // Add animation classes/logic
+                        if (s.isDef2_2_1a_Toggled && r === 0) {
+                           setTimeout(() => cell.classList.add('visible'), c * 50);
+                        }
+                        if (s.isDef2_2_1b_Toggled && r > 0) {
+                           setTimeout(() => cell.classList.add('visible'), (r) * (2000 / size) );
+                        }
+
+                        // Make clickable if both definitions are on
+                        if (s.isDef2_2_1a_Toggled && s.isDef2_2_1b_Toggled) {
+                            cell.classList.add('clickable');
+                        }
+                    }
+                    additionChartContainer.appendChild(cell);
+                }
+            }
+        }
+
+        function renderProofDisplay() {
+            const s = state.addition;
+            proofDisplayContainer.innerHTML = '';
+
+            if (!s.inProofMode) {
+                proofDisplayContainer.classList.remove('visible');
+                return;
+            }
+
+            proofDisplayContainer.classList.add('visible');
+
+            const { r, c } = s.selectedCell;
+            const result = r + c;
+            const parts = [
+                { text: r, type: 'operand-left', clickable: true },
+                { text: '+', type: 'operator', clickable: false },
+                { text: c, type: 'operand-right', clickable: false },
+                { text: '=', type: 'operator', clickable: false },
+                { text: result, type: 'result', clickable: false },
+            ];
+
+            parts.forEach((part, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'control-button proof-button';
+                btn.textContent = part.text;
+                if (!part.clickable) {
+                    btn.classList.add('static');
+                } else {
+                    btn.addEventListener('click', () => handleProofIncrement(btn, index));
+                }
+                proofDisplayContainer.appendChild(btn);
+            });
+        }
+
+        function exitProofMode() {
+            state.addition.inProofMode = false;
+            state.addition.selectedCell = { r: null, c: null };
+            renderProofDisplay();
+        }
+
+        function handleProofIncrement(button, buttonIndex) {
+            const s = state.addition;
+            if (s.selectedCell.r >= 9) return; // Cannot increment past 9
+
+            // Animate ++ symbol on the clicked button (operand)
+            const operandAnim = document.createElement('span');
+            operandAnim.className = 'plus-plus-animation';
+            operandAnim.textContent = '++';
+            button.appendChild(operandAnim);
+            setTimeout(() => operandAnim.remove(), 1000);
+
+            // Also animate ++ symbol on the result button (5th button, index 4)
+            const allButtons = proofDisplayContainer.querySelectorAll('.proof-button');
+            const resultButton = allButtons[4]; // Get the 5th button (result)
+            if (resultButton) {
+                const resultAnim = document.createElement('span');
+                resultAnim.className = 'plus-plus-animation';
+                resultAnim.textContent = '++';
+                resultButton.appendChild(resultAnim);
+                setTimeout(() => resultAnim.remove(), 1000);
+            }
+
+            // Highlight definition 2.2.1b with extended animation
+            def_2_2_1b_Button.classList.add('highlight-green');
+            setTimeout(() => def_2_2_1b_Button.classList.remove('highlight-green'), 1500);
+
+            // Update state
+            s.selectedCell.r++;
+
+            // Check for lemma unlock - only count consecutive clicks on n+0
+            if (s.selectedCell.c === 0) {
+                s.lemmaUnlockCounter++;
+                if (s.lemmaUnlockCounter === 3 && !s.isLemma2_2_2_Unlocked) {
+                    unlockLemma();
+                }
+            } else {
+                s.lemmaUnlockCounter = 0; // Reset if they deviate from the n+0 column
+            }
+
+            // Re-render proof display after a short delay to keep it active
+            setTimeout(() => renderProofDisplay(), 100);
+        }
+
+        function unlockLemma() {
+            state.addition.isLemma2_2_2_Unlocked = true;
+            lemma_2_2_2_Button.classList.add('unlock-fade-in');
+            updateAdditionControls();
+
+            // Show creative explanation animation with transformation
+            const explanation = document.createElement('div');
+            explanation.id = 'lemma-unlock-display';
+            explanation.innerHTML = `
+                <div style="font-size: 1.8rem; margin-bottom: 1rem;">
+                    <span id="transform-text"><code>n + 0 = n</code></span>
+                </div>
+                <div style="font-size: 1.2rem; opacity: 0.8;">
+                    By applying <code>(n++)+0 = (n+0)++</code> repeatedly...
+                </div>
+            `;
+            lemmaUnlockDisplayContainer.appendChild(explanation);
+
+            // Transform animation: n + 0 = n ⟹ (n++) + 0 = n++
+            setTimeout(() => {
+                const transformText = document.getElementById('transform-text');
+                if (transformText) {
+                    transformText.style.transition = 'all 1s ease-in-out';
+                    transformText.style.transform = 'scale(1.1)';
+                    transformText.style.color = 'var(--highlight-green)';
+                    setTimeout(() => {
+                        transformText.innerHTML = `<code>n + 0 = n ⟹<br>(n++) + 0 = n++</code>`;
+                        // Highlight definition 2.2.1b during transformation
+                        def_2_2_1b_Button.classList.add('highlight-green');
+                        setTimeout(() => def_2_2_1b_Button.classList.remove('highlight-green'), 2000);
+                    }, 500);
+                }
+            }, 1000);
+
+            setTimeout(() => explanation.remove(), 6000);
+
+            // Enhanced shake animation for the n+0 column with smoke effect
+            const cellsInCol0 = additionChartContainer.querySelectorAll('.addition-grid-cell[data-col="0"]');
+            cellsInCol0.forEach((cell, index) => {
+                if (cell.dataset.row && parseInt(cell.dataset.row) > 0) {
+                    setTimeout(() => {
+                        cell.classList.add('shake-and-smoke');
+                        // Add a temporary red glow effect
+                        cell.style.boxShadow = '0 0 20px 5px rgba(220, 53, 69, 0.6)';
+                        setTimeout(() => {
+                            cell.classList.remove('shake-and-smoke');
+                            cell.style.boxShadow = '';
+                        }, 1500);
+                    }, 1500 + index * 100); // Stagger the shake effect
+                }
+            });
+        }
+
+        // --- Event Listeners for Addition ---
+        def_2_2_1a_Button.addEventListener('click', () => {
+            state.addition.isDef2_2_1a_Toggled = !state.addition.isDef2_2_1a_Toggled;
+            // If toggling off, also toggle off dependent definitions
+            if (!state.addition.isDef2_2_1a_Toggled) {
+                state.addition.isDef2_2_1b_Toggled = false;
+                if(state.addition.inProofMode) exitProofMode();
+            }
+            renderAdditionSection();
+        });
+
+        def_2_2_1b_Button.addEventListener('click', () => {
+            if (def_2_2_1b_Button.disabled) return;
+            state.addition.isDef2_2_1b_Toggled = !state.addition.isDef2_2_1b_Toggled;
+             if (!state.addition.isDef2_2_1b_Toggled && state.addition.inProofMode) {
+                exitProofMode();
+            }
+            renderAdditionSection();
+        });
+
+        additionChartContainer.addEventListener('click', e => {
+            const cell = e.target.closest('.addition-grid-cell.clickable');
+            if (cell) {
+                state.addition.selectedCell.r = parseInt(cell.dataset.row, 10);
+                state.addition.selectedCell.c = parseInt(cell.dataset.col, 10);
+                state.addition.inProofMode = true;
+
+                // Reset lemma counter when starting fresh
+                if (state.addition.selectedCell.r === 0 && state.addition.selectedCell.c === 0) {
+                    state.addition.lemmaUnlockCounter = 0;
+                } else {
+                    state.addition.lemmaUnlockCounter = 0; // Reset for any other starting point
+                }
+
+                renderProofDisplay();
+            }
+        });
+
+        // Add a listener to exit proof mode if clicking outside (but not during animations)
+        document.addEventListener('click', (e) => {
+            if (state.addition.inProofMode &&
+                !proofDisplayContainer.contains(e.target) &&
+                !e.target.closest('.addition-grid-cell.clickable') &&
+                !e.target.closest('.control-button')) {
+                 exitProofMode();
+            }
+        });
+
+        // --- INITIAL RENDER ---
+        render();
+    });
+    </script>
+</body>
+</html>
