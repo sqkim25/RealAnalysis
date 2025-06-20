@@ -791,9 +791,7 @@
                 <div style="font-size: 1.8rem; margin-bottom: 1rem;">
                     <span id="transform-text"><code>n + 0 = n</code></span>
                 </div>
-                <div style="font-size: 1.2rem; opacity: 0.8;">
-                    By applying <code>(n++)+0 = (n+0)++</code> repeatedly...
-                </div>
+
             `;
             lemmaUnlockDisplayContainer.appendChild(explanation);
 
@@ -808,7 +806,7 @@
                         transformText.innerHTML = `<code>n + 0 = n ⟹<br>(n++) + 0 = n++</code>`;
                         // Highlight definition 2.2.1b during transformation
                         def_2_2_1b_Button.classList.add('highlight-green');
-                        setTimeout(() => def_2_2_1b_Button.classList.remove('highlight-green'), 2000);
+                        setTimeout(() => def_2_2_1b_Button.classList.remove('highlight-green'), 4000);
                     }, 500);
                 }
             }, 1000);
