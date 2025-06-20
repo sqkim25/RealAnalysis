@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Axiom Chart</title>
+    <style>
+        /* --- Basic Setup & Typography --- */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+
+        :root {
+            --bg-color: #f0f2f5;
+            --container-bg: #ffffff;
+            --grid-line-color: #e0e2e5;
+            --text-color: #333;
+            --header-color: #666;
+            --accent-color: #007bff;
+            --glass-bg: rgba(255, 255, 255, 0.3);
+            --glass-border: rgba(255, 255, 255, 0.5);
+            --shadow-light: rgba(0, 0, 0, 0.1);
+            --shadow-dark: rgba(0, 0, 0, 0.2);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+
+        /* --- Main Layout --- */
+        .main-container {
+            background: var(--container-bg);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px 0 var(--shadow-light);
+            width: 100%;
+            max-width: 900px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--text-color);
+            margin-top: 0;
+            font-weight: 700;
+        }
+
+        /* --- Controls (Liquid Glass Buttons) --- */
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.03);
+            border-radius: 12px;
+        }
+
+        .control-button {
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            background: var(--glass-bg);
+            box-shadow: 0 4px 15px var(--shadow-light);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            transition: all 0.2s ease-in-out;
+            color: var(--text-color);
+        }
+
+        .control-button:hover {
+            box-shadow: 0 6px 20px var(--shadow-dark);
+            transform: translateY(-2px);
+        }
+
+        .control-button.active {
+            background: var(--accent-color);
+            color: white;
+            box-shadow: 0 2px 10px rgba(0, 123, 255, 0.4);
+        }
+
+        .control-button code {
+            font-family: 'Courier New', Courier, monospace;
+            background: rgba(0,0,0,0.1);
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+
+        .control-button.active code {
+             background: rgba(255,255,255,0.2);
+        }
+
+        /* --- Chart Grid --- */
+        #chart-container {
+            display: grid;
+            gap: 1px;
+            background-color: var(--grid-line-color);
+            border: 1px solid var(--grid-line-color);
+            position: relative; /* For the zero effect */
+        }
+
+        .grid-cell {
+            background-color: var(--container-bg);
+            min-width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.1rem;
+            transition: background-color 0.2s ease;
+        }
+
+        .grid-cell.header {
+            font-weight: bold;
+            color: var(--header-color);
+            background-color: #fafafa;
+        }
+
+        .grid-cell.number-source {
+            cursor: pointer;
+        }
+        .grid-cell.number-source:hover {
+            background-color: #e9f5ff;
+        }
+
+        .grid-cell.diagonal {
+            background-color: #e8f4fd;
+            font-weight: bold;
+        }
+
+        .grid-cell.inequality {
+            background-color: #fff5f5;
+            color: #c53030;
+        }
+
+        .grid-cell code {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 1.2rem;
+        }
+
+        /* --- Axiom 2.3 Visual Effect --- */
+        #zero-effect-container {
+            position: absolute;
+            top: 61px;  /* Position relative to grid, below top header */
+            left: -61px; /* To the left of the row header */
+            width: 60px;
+            height: 60px;
+        }
+
+        .fading-symbol {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--accent-color);
+            animation: fade-out-up 1s ease-in-out forwards;
+        }
+
+        @keyframes fade-out-up {
+            from {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+            to {
+                opacity: 0;
+                transform: translate(-50%, -150%) scale(0.5);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <h1>Peano Axioms & Equality Chart</h1>
+
+        <div class="controls">
+            <button class="control-button" id="axiom2_1">Axiom 2.1: <code>0 ∈ ℕ</code> (Create 0)</button>
+            <button class="control-button" id="axiom2_2">Axiom 2.2: <code>n++ ∈ ℕ</code> (Select then click a number)</button>
+            <button class="control-button" id="axiom2_3">Axiom 2.3: <code>0 ≠ n++</code> (Toggle)</button>
+            <button class="control-button" id="reflexivity">Reflexivity: <code>n = n</code> (Toggle)</button>
+            <button class="control-button" id="axiom2_4">Axiom 2.4: <code>m≠n ⇒ m++≠n++</code> (Toggle)</button>
+        </div>
+
+        <div id="chart-container"></div>
+        <div id="zero-effect-container"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- STATE MANAGEMENT ---
+            const state = {
+                maxNumber: -1,
+                isAxiom2_2Active: false,
+                isAxiom2_3Toggled: false,
+                isReflexivityToggled: false,
+                isAxiom2_4Toggled: false,
+            };
+
+            // --- DOM ELEMENTS ---
+            const chartContainer = document.getElementById('chart-container');
+            const zeroEffectContainer = document.getElementById('zero-effect-container');
+            const axiom2_1_Button     = document.getElementById('axiom2_1');
+            const axiom2_2_Button     = document.getElementById('axiom2_2');
+            const axiom2_3_Button     = document.getElementById('axiom2_3');
+            const reflexivityButton   = document.getElementById('reflexivity');
+            const axiom2_4_Button     = document.getElementById('axiom2_4');
+
+            // --- CORE RENDER FUNCTION ---
+            function renderChart() {
+                chartContainer.innerHTML = '';
+                if (state.maxNumber < 0) {
+                    chartContainer.style.display = 'none';
+                    return;
+                }
+                chartContainer.style.display = 'grid';
+
+                const showEllipsis = state.maxNumber === 9;
+                const cols = state.maxNumber + 2 + (showEllipsis ? 1 : 0);
+                chartContainer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+                // Build logical gridContent
+                const gridContent = Array(state.maxNumber + 1).fill(null)
+                    .map(() => Array(state.maxNumber + 1).fill(null));
+
+                // Axiom 2.3
+                if (state.isAxiom2_3Toggled) {
+                    for (let n = 1; n <= state.maxNumber; n++) {
+                        gridContent[0][n] = `0 ≠ ${n}`;
+                        gridContent[n][0] = `${n} ≠ 0`;
+                    }
+                }
+
+                // Axiom 2.4 propagation
+                if (state.isAxiom2_4Toggled) {
+                    for (let iter = 0; iter < state.maxNumber; iter++) {
+                        for (let r = 1; r <= state.maxNumber; r++) {
+                            for (let c = 1; c <= state.maxNumber; c++) {
+                                if (gridContent[r - 1][c - 1] != null) {
+                                    gridContent[r][c] = `${r} ≠ ${c}`;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Reflexivity
+                if (state.isReflexivityToggled) {
+                    for (let n = 0; n <= state.maxNumber; n++) {
+                        gridContent[n][n] = `${n} = ${n}`;
+                    }
+                }
+
+                // Cell creator
+                function createCell(content, classes = [], isCode = false, row = null, col = null, rawContent = null) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('grid-cell', ...classes);
+                    if (row !== null) cell.dataset.row = row;
+                    if (col !== null) cell.dataset.col = col;
+                    if (rawContent != null) cell.dataset.content = rawContent;
+                    if (isCode && content) {
+                        const code = document.createElement('code');
+                        code.innerHTML = content;
+                        cell.appendChild(code);
+                    } else {
+                        cell.innerHTML = content;
+                    }
+                    return cell;
+                }
+
+                // Headers
+                chartContainer.appendChild(createCell('', ['header']));
+                for (let i = 0; i <= state.maxNumber; i++) {
+                    chartContainer.appendChild(createCell(i, ['header','number-source']));
+                }
+                if (showEllipsis) {
+                    chartContainer.appendChild(createCell('...', ['header']));
+                }
+
+                // Body
+                for (let r = 0; r <= state.maxNumber; r++) {
+                    chartContainer.appendChild(createCell(r, ['header','number-source']));
+                    for (let c = 0; c <= state.maxNumber; c++) {
+                        const raw = gridContent[r][c] || '';
+                        const isIneq = raw.includes('≠');
+                        const isEq   = raw.includes('=');
+                        const display = (state.isAxiom2_4Toggled && isIneq) ? '' : raw;
+                        const classes = ['number-source'];
+                        if (isEq)   classes.push('diagonal');
+                        if (isIneq) classes.push('inequality');
+                        chartContainer.appendChild(
+                            createCell(display, classes, true, r, c, isIneq ? raw : null)
+                        );
+                    }
+                    if (showEllipsis) {
+                        chartContainer.appendChild(createCell('...'));
+                    }
+                }
+
+                // Animate Axiom 2.4
+                if (state.isAxiom2_4Toggled) {
+                    animateInequalities();
+                }
+            }
+
+            // Diagonal-by-diagonal reveal over 2 seconds
+            function animateInequalities() {
+                const max = state.maxNumber;
+                const totalMs = 2000;
+                const groupCount = max + 1;
+                const groupInterval = totalMs / groupCount;
+
+                // Collect cells into diagonal groups
+                const groups = Array.from({ length: groupCount }, () => []);
+                chartContainer.querySelectorAll('.grid-cell.inequality').forEach(cell => {
+                    const r = +cell.dataset.row, c = +cell.dataset.col;
+                    if (!cell.dataset.content) return;
+                    for (let diag = 0; diag <= max; diag++) {
+                        if ((r === diag && c > diag) || (c === diag && r > diag)) {
+                            groups[diag].push(cell);
+                            break;
+                        }
+                    }
+                });
+
+                groups.forEach((cells, diag) => {
+                    setTimeout(() => {
+                        cells.forEach(cell => {
+                            const code = document.createElement('code');
+                            code.innerHTML = cell.dataset.content;
+                            cell.appendChild(code);
+                        });
+                    }, diag * groupInterval);
+                });
+            }
+
+            // Axiom 2.3 “zero” effect
+            function triggerZeroEffect() {
+                const symbols = ['α','β','γ','X','?','#'];
+                const span = document.createElement('span');
+                span.classList.add('fading-symbol');
+                span.innerHTML = symbols[Math.floor(Math.random()*symbols.length)];
+                zeroEffectContainer.appendChild(span);
+                setTimeout(()=>span.remove(),1000);
+            }
+
+            // --- EVENT LISTENERS ---
+            axiom2_1_Button.addEventListener('click', () => {
+                if (state.maxNumber === -1) {
+                    state.maxNumber = 0;
+                    axiom2_1_Button.classList.add('active');
+                    axiom2_1_Button.disabled = true;
+                    renderChart();
+                }
+            });
+
+            axiom2_2_Button.addEventListener('click', () => {
+                if (state.maxNumber < 0 || state.maxNumber >= 9) return;
+                state.isAxiom2_2Active = !state.isAxiom2_2Active;
+                axiom2_2_Button.classList.toggle('active', state.isAxiom2_2Active);
+            });
+
+            chartContainer.addEventListener('click', e => {
+                if (state.isAxiom2_2Active && e.target.closest('.number-source')) {
+                    if (state.maxNumber < 9) {
+                        state.maxNumber++;
+                        renderChart();
+                    }
+                }
+            });
+
+            axiom2_3_Button.addEventListener('click', () => {
+                state.isAxiom2_3Toggled = !state.isAxiom2_3Toggled;
+                axiom2_3_Button.classList.toggle('active', state.isAxiom2_3Toggled);
+                triggerZeroEffect();
+                renderChart();
+            });
+
+            reflexivityButton.addEventListener('click', () => {
+                state.isReflexivityToggled = !state.isReflexivityToggled;
+                reflexivityButton.classList.toggle('active', state.isReflexivityToggled);
+                renderChart();
+            });
+
+            axiom2_4_Button.addEventListener('click', () => {
+                state.isAxiom2_4Toggled = !state.isAxiom2_4Toggled;
+                axiom2_4_Button.classList.toggle('active', state.isAxiom2_4Toggled);
+                renderChart();
+            });
+
+            // Initial render
+            renderChart();
+        });
+    </script>
+</body>
+</html>
